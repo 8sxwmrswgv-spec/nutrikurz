@@ -1183,7 +1183,7 @@
               <h3>${escapeHtml(lesson.title)}</h3>
 
               <video controls controlsList="nodownload" preload="metadata">
-                <source src="/private-videos/video${num}.mp4" type="video/mp4">
+                <source src="/private/videos/video${num}.mp4" type="video/mp4">
               </video>
 
               <div class="description formatted-text">${formatText(lesson.description)}</div>
@@ -1195,11 +1195,11 @@
       }
 
       // Exportujeme iba funkcie potrebné pre onclick v HTML.
-      // showCourse zostáva skryté, takže nejde len tak spustiť cez konzolu ako showCourse().
+      // showCourse exportované aj na rýchle testovanie cez konzolu.
+      window.showCourse = showCourse;
       window.buyCourse = buyCourse;
       window.sendLoginCode = sendLoginCode;
       window.unlock = unlock;
-      window.showCourse = showCourse;
 
       checkSession();
     })();
