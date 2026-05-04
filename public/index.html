@@ -796,7 +796,7 @@
             <input type="text" id="code" placeholder="6-miestny kód" inputmode="numeric" />
           </div>
 
-          <button onclick="showCourse()">Odomknúť kurz</button>
+          <button class="btn btn-primary full" onclick="unlock()">Odomknúť kurz</button>
         </div>
 
         <div id="message" class="message"></div>
@@ -822,358 +822,387 @@
   </footer>
 
   <script>
-    const API_URL = "";
+    (() => {
+      const API_URL = "";
 
-    function setMessage(text, type = "") {
-      const msg = document.getElementById("message");
-      msg.textContent = text;
-      msg.className = "message " + type;
-    }
+      // ADMIN TEST PRÍSTUP
+      // ZMEŇ SI EMAIL NA SVOJ. Tento bypass je iba na testovanie.
+      const ADMIN_EMAIL = "azuriangarta@gmail.com";
+      const ADMIN_CODE = "WaOs5668";
 
-    async function buyCourse() {
-      const email = document.getElementById("buyEmail").value.trim();
-
-      if (!email) {
-        setMessage("Zadaj e-mail.", "error");
-        return;
+      function setMessage(text, type = "") {
+        const msg = document.getElementById("message");
+        msg.textContent = text;
+        msg.className = "message " + type;
       }
 
-      try {
-        const res = await fetch(`${API_URL}/create-checkout-session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email })
-        });
+      async function buyCourse() {
+        const email = document.getElementById("buyEmail").value.trim();
 
-        const data = await res.json();
-
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          setMessage(data.error || "Nepodarilo sa vytvoriť platbu.", "error");
+        if (!email) {
+          setMessage("Zadaj e-mail.", "error");
+          return;
         }
-      } catch (err) {
-        setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
-      }
-    }
 
-    async function sendLoginCode() {
-      const email = document.getElementById("loginEmail").value.trim();
+        try {
+          const res = await fetch(`${API_URL}/create-checkout-session`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email })
+          });
 
-      if (!email) {
-        setMessage("Zadaj e-mail.", "error");
-        return;
-      }
+          const data = await res.json();
 
-      try {
-        const res = await fetch(`${API_URL}/send-login-code`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          setMessage("Kód bol odoslaný na e-mail. Platí 30 minút.", "success");
-        } else {
-          setMessage(data.error || "Nepodarilo sa poslať kód.", "error");
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            setMessage(data.error || "Nepodarilo sa vytvoriť platbu.", "error");
+          }
+        } catch (err) {
+          setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
         }
-      } catch (err) {
-        setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
-      }
-    }
-
-    async function unlock() {
-      const email =
-        document.getElementById("loginEmail").value.trim() ||
-        document.getElementById("buyEmail").value.trim();
-
-      const code = document.getElementById("code").value.trim();
-      console.log(email, code);
-      if (email === "azuriangarta@email.com" && code === "WaOs5668") {
-  setMessage("Admin prístup odomknutý.", "success");
-  showCourse();
-  return;
-}
-
-      if (!email || !code) {
-        setMessage("Zadaj e-mail aj kód.", "error");
-        return;
       }
 
-      try {
-        const res = await fetch(`${API_URL}/verify-code`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, code })
-        });
+      async function sendLoginCode() {
+        const email = document.getElementById("loginEmail").value.trim();
 
-        const data = await res.json();
+        if (!email) {
+          setMessage("Zadaj e-mail.", "error");
+          return;
+        }
 
-        if (data.success) {
-          setMessage("Kurz odomknutý.", "success");
+        if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          setMessage("Admin účet: zadaj admin kód a klikni Odomknúť kurz.", "success");
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_URL}/send-login-code`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            setMessage("Kód bol odoslaný na e-mail. Platí 30 minút.", "success");
+          } else {
+            setMessage(data.error || "Nepodarilo sa poslať kód.", "error");
+          }
+        } catch (err) {
+          setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+        }
+      }
+
+      async function unlock() {
+        const email =
+          document.getElementById("loginEmail").value.trim() ||
+          document.getElementById("buyEmail").value.trim();
+
+        const code = document.getElementById("code").value.trim();
+
+        if (!email || !code) {
+          setMessage("Zadaj e-mail aj kód.", "error");
+          return;
+        }
+
+        // ADMIN BYPASS PRE MAJITEĽA
+        if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && code === ADMIN_CODE) {
+          sessionStorage.setItem("nutrikurz_admin_unlocked", "1");
+          setMessage("Admin prístup odomknutý.", "success");
           showCourse();
-        } else {
-          setMessage(data.error || "Nesprávny alebo expirovaný kód.", "error");
+          return;
         }
-      } catch (err) {
-        setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+
+        try {
+          const res = await fetch(`${API_URL}/verify-code`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, code })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            sessionStorage.setItem("nutrikurz_unlocked", "1");
+            setMessage("Kurz odomknutý.", "success");
+            showCourse();
+          } else {
+            setMessage(data.error || "Nesprávny alebo expirovaný kód.", "error");
+          }
+        } catch (err) {
+          setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+        }
       }
-    }
 
-    async function checkSession() {
-      try {
-        const res = await fetch(`${API_URL}/me`, {
-          credentials: "include"
-        });
-
-        const data = await res.json();
-
-        if (data.loggedIn) {
+      async function checkSession() {
+        if (
+          sessionStorage.getItem("nutrikurz_admin_unlocked") === "1" ||
+          sessionStorage.getItem("nutrikurz_unlocked") === "1"
+        ) {
           showCourse(false);
+          return;
         }
-      } catch (err) {
-        // nič nerobíme, keď server ešte nebeží
+
+        try {
+          const res = await fetch(`${API_URL}/me`, {
+            credentials: "include"
+          });
+
+          const data = await res.json();
+
+          if (data.loggedIn) {
+            showCourse(false);
+          }
+        } catch (err) {
+          // nič nerobíme, keď server ešte nebeží
+        }
       }
-    }
 
-    function showCourse(scroll = true) {
-      document.getElementById("course").style.display = "block";
-      renderLessons();
+      function showCourse(scroll = true) {
+        document.getElementById("course").style.display = "block";
+        renderLessons();
 
-      if (scroll) {
-        document.getElementById("course").scrollIntoView({ behavior: "smooth" });
+        if (scroll) {
+          document.getElementById("course").scrollIntoView({ behavior: "smooth" });
+        }
       }
-    }
 
-    function escapeHtml(value) {
-      return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
 
-    function formatText(value) {
-      return escapeHtml(value).replace(/\n/g, "<br>");
-    }
+      function formatText(value) {
+        return escapeHtml(value).replace(/\n/g, "<br>");
+      }
 
-    function mealItem(title, items, kcal) {
-      return `
-        <div class="meal-card">
-          <h5>${title}</h5>
-          <ul>${items.map(item => `<li>${item}</li>`).join("")}</ul>
-          <span class="meal-kcal">cca: ${kcal}</span>
-        </div>
-      `;
-    }
-
-    function nutritionTable(title, rows, macroName) {
-      return `
-        <div>
-          <div class="macro-title">${title}</div>
-          <div class="nutrition-table-wrap">
-            <table class="nutrition-table">
-              <thead>
-                <tr>
-                  <th>Potravina</th>
-                  <th>Množstvo</th>
-                  <th>Kalórie</th>
-                  <th>${macroName}</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rows.map(row => `
-                  <tr>
-                    <td>${row.food}</td>
-                    <td>${row.amount}</td>
-                    <td>${row.kcal}</td>
-                    <td>${row.macro}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderMealPlan() {
-      const cutMeals = [
-        { title: "Raňajky", items: ["ovsené vločky (60 g)", "mlieko alebo voda", "proteín alebo jogurt", "ovocie"], kcal: "400 kcal" },
-        { title: "Obed", items: ["kuracie prsia (150 g)", "ryža (100 g varená)", "zelenina"], kcal: "500 kcal" },
-        { title: "Olovrant", items: ["grécky jogurt", "orechy (20 g)"], kcal: "300 kcal" },
-        { title: "Večera", items: ["hovädzie mäso / tuniak / vajcia", "zemiaky alebo pečivo", "zelenina"], kcal: "500 kcal" },
-        { title: "Snack (voliteľné)", items: ["kúsok čokolády / ovocie"], kcal: "200–300 kcal" }
-      ];
-
-      const bulkMeals = [
-        { title: "Raňajky", items: ["ovsené vločky (80 g)", "mlieko", "banán", "arašidové maslo"], kcal: "700 kcal" },
-        { title: "Obed", items: ["kuracie mäso (200 g)", "ryža (150 g varená)", "olej (10 g)"], kcal: "700 kcal" },
-        { title: "Olovrant", items: ["pečivo", "šunka / syr", "orechy"], kcal: "500 kcal" },
-        { title: "Večera", items: ["losos / mäso", "zemiaky / ryža", "zelenina"], kcal: "600 kcal" },
-        { title: "Snack", items: ["smoothie / proteínový nápoj"], kcal: "300 kcal" }
-      ];
-
-      const proteinRows = [
-        { food: "Kuracie prsia", amount: "100 g", kcal: "120 kcal", macro: "22 g" },
-        { food: "Vajcia", amount: "1 ks", kcal: "70 kcal", macro: "6 g" },
-        { food: "Tvaroh", amount: "100 g", kcal: "90 kcal", macro: "11 g" },
-        { food: "Grécky jogurt", amount: "100 g", kcal: "60 kcal", macro: "10 g" }
-      ];
-
-      const carbRows = [
-        { food: "Ryža (varená)", amount: "100 g", kcal: "130 kcal", macro: "28 g" },
-        { food: "Zemiaky", amount: "100 g", kcal: "80 kcal", macro: "17 g" },
-        { food: "Ovsené vločky", amount: "50 g", kcal: "190 kcal", macro: "30 g" },
-        { food: "Banán", amount: "1 ks", kcal: "100 kcal", macro: "25 g" }
-      ];
-
-      const fatRows = [
-        { food: "Olivový olej", amount: "10 g", kcal: "90 kcal", macro: "10 g" },
-        { food: "Orechy", amount: "30 g", kcal: "180 kcal", macro: "15 g" },
-        { food: "Avokádo", amount: "100 g", kcal: "160 kcal", macro: "15 g" }
-      ];
-
-      return `
-        <section class="meal-plan">
-          <h4>🍽️ Ukážkové jedálničky a orientačné hodnoty</h4>
-
-          <div class="meal-card" style="margin-bottom: 14px;">
-            <h5>3. Ukážkový jedálniček — chudnutie (cca 2000 kcal)</h5>
-            <div class="meal-grid">${cutMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
-          </div>
-
+      function mealItem(title, items, kcal) {
+        return `
           <div class="meal-card">
-            <h5>4. Ukážkový jedálniček — priberanie (cca 2800 kcal)</h5>
-            <div class="meal-grid">${bulkMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
+            <h5>${title}</h5>
+            <ul>${items.map(item => `<li>${item}</li>`).join("")}</ul>
+            <span class="meal-kcal">cca: ${kcal}</span>
           </div>
+        `;
+      }
 
-          <div class="nutrition-tables">
-            ${nutritionTable("Bielkoviny", proteinRows, "Bielkoviny")}
-            ${nutritionTable("Sacharidy", carbRows, "Sacharidy")}
-            ${nutritionTable("Tuky", fatRows, "Tuky")}
+      function nutritionTable(title, rows, macroName) {
+        return `
+          <div>
+            <div class="macro-title">${title}</div>
+            <div class="nutrition-table-wrap">
+              <table class="nutrition-table">
+                <thead>
+                  <tr>
+                    <th>Potravina</th>
+                    <th>Množstvo</th>
+                    <th>Kalórie</th>
+                    <th>${macroName}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map(row => `
+                    <tr>
+                      <td>${row.food}</td>
+                      <td>${row.amount}</td>
+                      <td>${row.kcal}</td>
+                      <td>${row.macro}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </section>
-      `;
-    }
+        `;
+      }
 
-    function renderLessons() {
-      const lessons = document.getElementById("lessons");
-      lessons.innerHTML = "";
+      function renderMealPlan() {
+        const cutMeals = [
+          { title: "Raňajky", items: ["ovsené vločky (60 g)", "mlieko alebo voda", "proteín alebo jogurt", "ovocie"], kcal: "400 kcal" },
+          { title: "Obed", items: ["kuracie prsia (150 g)", "ryža (100 g varená)", "zelenina"], kcal: "500 kcal" },
+          { title: "Olovrant", items: ["grécky jogurt", "orechy (20 g)"], kcal: "300 kcal" },
+          { title: "Večera", items: ["hovädzie mäso / tuniak / vajcia", "zemiaky alebo pečivo", "zelenina"], kcal: "500 kcal" },
+          { title: "Snack (voliteľné)", items: ["kúsok čokolády / ovocie"], kcal: "200–300 kcal" }
+        ];
 
-      // TU SI UPRAVUJEŠ NADPISY, POPISY A POZNÁMKY POD VIDEAMI
-      const lessonsData = [
-        {
-                "title": "Lekcia 1",
-                "description": "Ako telo pracuje s jedlom (zjednodušene)",
-                "notes": "Výživa NIE JE diéta.\nVýživa = systém, ktorý riadi tvoje telo.\n\nTo znamená:\n• ak ju pochopíš → vieš ovládať váhu aj zdravie\n• ak ju ignoruješ → telo ide proti tebe\n\nOtázka: Myslíš si, že tvoje telo reaguje na jedlo okamžite, alebo až po čase?\nOdpoveď: reaguje okamžite – hormonálne aj metabolicky.",
-                "duration": "Video 1"
-        },
-        {
-                "title": "Lekcia 2",
-                "description": "Metabolizmus bez mýtov",
-                "notes": "Robíš viac pre svoj metabolizmus… alebo proti nemu?",
-                "duration": "Video 2"
-        },
-        {
-                "title": "Lekcia 3",
-                "description": "Ako si zostaviť jedálniček",
-                "notes": "Otvor si chladničku a povedz si:\nJe toto prostredie nastavené na úspech… alebo zlyhanie?",
-                "duration": "Video 3"
-        },
-        {
-                "title": "Lekcia 4",
-                "description": "Ako čítať etikety potravín",
-                "notes": "Choď do obchodu a:\n1. vyber „fit“ produkt\n2. prečítaj etiketu\n3. zisti realitu\n\nPorovnávaj produkty medzi sebou, napríklad 2 jogurty alebo 2 tyčinky. Vyber lepší na základe dát, nie obalu.",
-                "duration": "Video 4"
-        },
-        {
-                "title": "Lekcia 5",
-                "description": "Zdravé vs. nezdravé potraviny",
-                "notes": "Napíš si:\n• 5 jedál, ktoré máš rád\n• uprav ich tak, aby boli výhodnejšie\n\nPríklad: pizza → menšia porcia + bielkoviny + zelenina.\n\nNie je dôležité, čo zješ občas, ale to, čo robíš každý deň.",
-                "duration": "Video 5"
-        },
-        {
-                "title": "Lekcia 6",
-                "description": "Ako jesť vonku a nepriberať",
-                "notes": "Nabudúce keď pôjdeš jesť von:\n1. vedome si vyber jedlo\n2. sleduj porciu\n3. zastav sa, keď si sýty\n\nToto je skill, ktorý mení výsledky.\nNie je dôležité, čo zješ v reštaurácii, ale ako často a koľko.",
-                "duration": "Video 6"
-        },
-        {
-                "title": "Lekcia 7",
-                "description": "Prečo diéty nefungujú",
-                "notes": "Odpovedz si úprimne:\nKoľko diét som už skúšal… a koľko z nich fungovalo dlhodobo?\n\nToto je moment uvedomenia.\nNie je dôležité, čo funguje 2 týždne, ale čo dokážeš robiť 2 roky.",
-                "duration": "Video 7"
-        },
-        {
-                "title": "Lekcia 8",
-                "description": "Ako nastaviť kalorický deficit",
-                "notes": "Vypočítaj si:\n• svoj príjem\n• svoj deficit\n\nNapíš si: Toto je môj plán, nie diéta.\nChudnutie nie je o tom jesť čo najmenej, ale o tom jesť správne množstvo.",
-                "duration": "Video 8"
-        },
-        {
-                "title": "Lekcia 9",
-                "description": "Sem napíš hlavný popis deviatej lekcie.",
-                "notes": "Sem napíš poznámky k lekcii 9.",
-                "duration": "Video 9"
-        },
-        {
-                "title": "Lekcia 10",
-                "description": "Najčastejšie chyby pri chudnutí",
-                "notes": "Napíš si:\n• Moje 3 najväčšie chyby sú…\n\nA začni na nich pracovať.\nNie to, čo robíš občas, ale to, čo robíš každý deň, určuje tvoje výsledky.",
-                "duration": "Video 10"
-        },
-        {
-                "title": "Lekcia 11",
-                "description": "Priberanie a budovanie svalov",
-                "notes": "Nepriberáš, lebo:\n• nemáš konzistentný kalorický nadbytok\n• telo si výdaj prispôsobuje\n• chýba ti stratégia, nie genetika",
-                "duration": "Video 11"
-        },
-        {
-                "title": "Lekcia 12",
-                "description": "Kalorický surplus vysvetlený",
-                "notes": "• surplus je nutný pre rast\n• malý surplus = lepšia kvalita priberania\n• jedlo musí byť strategické, nie náhodné",
-                "duration": "Video 12"
-        },
-        {
-                "title": "Lekcia 13",
-                "description": "Strava pre rast svalov",
-                "notes": "• bielkoviny sú základ\n• sacharidy podporujú výkon\n• regenerácia rozhoduje o raste",
-                "duration": "Video 13"
-        }
-];
+        const bulkMeals = [
+          { title: "Raňajky", items: ["ovsené vločky (80 g)", "mlieko", "banán", "arašidové maslo"], kcal: "700 kcal" },
+          { title: "Obed", items: ["kuracie mäso (200 g)", "ryža (150 g varená)", "olej (10 g)"], kcal: "700 kcal" },
+          { title: "Olovrant", items: ["pečivo", "šunka / syr", "orechy"], kcal: "500 kcal" },
+          { title: "Večera", items: ["losos / mäso", "zemiaky / ryža", "zelenina"], kcal: "600 kcal" },
+          { title: "Snack", items: ["smoothie / proteínový nápoj"], kcal: "300 kcal" }
+        ];
 
-      lessonsData.forEach((lesson, index) => {
-        const num = index + 1;
+        const proteinRows = [
+          { food: "Kuracie prsia", amount: "100 g", kcal: "120 kcal", macro: "22 g" },
+          { food: "Vajcia", amount: "1 ks", kcal: "70 kcal", macro: "6 g" },
+          { food: "Tvaroh", amount: "100 g", kcal: "90 kcal", macro: "11 g" },
+          { food: "Grécky jogurt", amount: "100 g", kcal: "60 kcal", macro: "10 g" }
+        ];
 
-        lessons.innerHTML += `
-          <article class="lesson">
-            <div class="lesson-head">
-              <span class="badge">● Lekcia ${num}</span>
-              <span class="duration">${escapeHtml(lesson.duration)}</span>
+        const carbRows = [
+          { food: "Ryža (varená)", amount: "100 g", kcal: "130 kcal", macro: "28 g" },
+          { food: "Zemiaky", amount: "100 g", kcal: "80 kcal", macro: "17 g" },
+          { food: "Ovsené vločky", amount: "50 g", kcal: "190 kcal", macro: "30 g" },
+          { food: "Banán", amount: "1 ks", kcal: "100 kcal", macro: "25 g" }
+        ];
+
+        const fatRows = [
+          { food: "Olivový olej", amount: "10 g", kcal: "90 kcal", macro: "10 g" },
+          { food: "Orechy", amount: "30 g", kcal: "180 kcal", macro: "15 g" },
+          { food: "Avokádo", amount: "100 g", kcal: "160 kcal", macro: "15 g" }
+        ];
+
+        return `
+          <section class="meal-plan">
+            <h4>🍽️ Ukážkové jedálničky a orientačné hodnoty</h4>
+
+            <div class="meal-card" style="margin-bottom: 14px;">
+              <h5>3. Ukážkový jedálniček — chudnutie (cca 2000 kcal)</h5>
+              <div class="meal-grid">${cutMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
             </div>
 
-            <h3>${escapeHtml(lesson.title)}</h3>
+            <div class="meal-card">
+              <h5>4. Ukážkový jedálniček — priberanie (cca 2800 kcal)</h5>
+              <div class="meal-grid">${bulkMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
+            </div>
 
-            <video controls controlsList="nodownload" preload="metadata">
-              <source src="../private-videos/video${num}.mp4" type="video/mp4">
-            </video>
-
-            <div class="description formatted-text">${formatText(lesson.description)}</div>
-            <div class="notes formatted-text">${formatText(lesson.notes)}</div>
-            ${renderMealPlan()}
-          </article>
+            <div class="nutrition-tables">
+              ${nutritionTable("Bielkoviny", proteinRows, "Bielkoviny")}
+              ${nutritionTable("Sacharidy", carbRows, "Sacharidy")}
+              ${nutritionTable("Tuky", fatRows, "Tuky")}
+            </div>
+          </section>
         `;
-      });
-    }
+      }
 
-    checkSession();
+      function renderLessons() {
+        const lessons = document.getElementById("lessons");
+        lessons.innerHTML = "";
+
+        const lessonsData = [
+          {
+            "title": "Lekcia 1",
+            "description": "Ako telo pracuje s jedlom (zjednodušene)",
+            "notes": "Výživa NIE JE diéta.\nVýživa = systém, ktorý riadi tvoje telo.\n\nTo znamená:\n• ak ju pochopíš → vieš ovládať váhu aj zdravie\n• ak ju ignoruješ → telo ide proti tebe\n\nOtázka: Myslíš si, že tvoje telo reaguje na jedlo okamžite, alebo až po čase?\nOdpoveď: reaguje okamžite – hormonálne aj metabolicky.",
+            "duration": "Video 1"
+          },
+          {
+            "title": "Lekcia 2",
+            "description": "Metabolizmus bez mýtov",
+            "notes": "Robíš viac pre svoj metabolizmus… alebo proti nemu?",
+            "duration": "Video 2"
+          },
+          {
+            "title": "Lekcia 3",
+            "description": "Ako si zostaviť jedálniček",
+            "notes": "Otvor si chladničku a povedz si:\nJe toto prostredie nastavené na úspech… alebo zlyhanie?",
+            "duration": "Video 3"
+          },
+          {
+            "title": "Lekcia 4",
+            "description": "Ako čítať etikety potravín",
+            "notes": "Choď do obchodu a:\n1. vyber „fit“ produkt\n2. prečítaj etiketu\n3. zisti realitu\n\nPorovnávaj produkty medzi sebou, napríklad 2 jogurty alebo 2 tyčinky. Vyber lepší na základe dát, nie obalu.",
+            "duration": "Video 4"
+          },
+          {
+            "title": "Lekcia 5",
+            "description": "Zdravé vs. nezdravé potraviny",
+            "notes": "Napíš si:\n• 5 jedál, ktoré máš rád\n• uprav ich tak, aby boli výhodnejšie\n\nPríklad: pizza → menšia porcia + bielkoviny + zelenina.\n\nNie je dôležité, čo zješ občas, ale to, čo robíš každý deň.",
+            "duration": "Video 5"
+          },
+          {
+            "title": "Lekcia 6",
+            "description": "Ako jesť vonku a nepriberať",
+            "notes": "Nabudúce keď pôjdeš jesť von:\n1. vedome si vyber jedlo\n2. sleduj porciu\n3. zastav sa, keď si sýty\n\nToto je skill, ktorý mení výsledky.\nNie je dôležité, čo zješ v reštaurácii, ale ako často a koľko.",
+            "duration": "Video 6"
+          },
+          {
+            "title": "Lekcia 7",
+            "description": "Prečo diéty nefungujú",
+            "notes": "Odpovedz si úprimne:\nKoľko diét som už skúšal… a koľko z nich fungovalo dlhodobo?\n\nToto je moment uvedomenia.\nNie je dôležité, čo funguje 2 týždne, ale čo dokážeš robiť 2 roky.",
+            "duration": "Video 7"
+          },
+          {
+            "title": "Lekcia 8",
+            "description": "Ako nastaviť kalorický deficit",
+            "notes": "Vypočítaj si:\n• svoj príjem\n• svoj deficit\n\nNapíš si: Toto je môj plán, nie diéta.\nChudnutie nie je o tom jesť čo najmenej, ale o tom jesť správne množstvo.",
+            "duration": "Video 8"
+          },
+          {
+            "title": "Lekcia 9",
+            "description": "Sem napíš hlavný popis deviatej lekcie.",
+            "notes": "Sem napíš poznámky k lekcii 9.",
+            "duration": "Video 9"
+          },
+          {
+            "title": "Lekcia 10",
+            "description": "Najčastejšie chyby pri chudnutí",
+            "notes": "Napíš si:\n• Moje 3 najväčšie chyby sú…\n\nA začni na nich pracovať.\nNie to, čo robíš občas, ale to, čo robíš každý deň, určuje tvoje výsledky.",
+            "duration": "Video 10"
+          },
+          {
+            "title": "Lekcia 11",
+            "description": "Priberanie a budovanie svalov",
+            "notes": "Nepriberáš, lebo:\n• nemáš konzistentný kalorický nadbytok\n• telo si výdaj prispôsobuje\n• chýba ti stratégia, nie genetika",
+            "duration": "Video 11"
+          },
+          {
+            "title": "Lekcia 12",
+            "description": "Kalorický surplus vysvetlený",
+            "notes": "• surplus je nutný pre rast\n• malý surplus = lepšia kvalita priberania\n• jedlo musí byť strategické, nie náhodné",
+            "duration": "Video 12"
+          },
+          {
+            "title": "Lekcia 13",
+            "description": "Strava pre rast svalov",
+            "notes": "• bielkoviny sú základ\n• sacharidy podporujú výkon\n• regenerácia rozhoduje o raste",
+            "duration": "Video 13"
+          }
+        ];
+
+        lessonsData.forEach((lesson, index) => {
+          const num = index + 1;
+
+          lessons.innerHTML += `
+            <article class="lesson">
+              <div class="lesson-head">
+                <span class="badge">● Lekcia ${num}</span>
+                <span class="duration">${escapeHtml(lesson.duration)}</span>
+              </div>
+
+              <h3>${escapeHtml(lesson.title)}</h3>
+
+              <video controls controlsList="nodownload" preload="metadata">
+                <source src="/private-videos/video${num}.mp4" type="video/mp4">
+              </video>
+
+              <div class="description formatted-text">${formatText(lesson.description)}</div>
+              <div class="notes formatted-text">${formatText(lesson.notes)}</div>
+              ${renderMealPlan()}
+            </article>
+          `;
+        });
+      }
+
+      // Exportujeme iba funkcie potrebné pre onclick v HTML.
+      // showCourse zostáva skryté, takže nejde len tak spustiť cez konzolu ako showCourse().
+      window.buyCourse = buyCourse;
+      window.sendLoginCode = sendLoginCode;
+      window.unlock = unlock;
+      window.showCourse = showCourse;
+
+      checkSession();
+    })();
   </script>
 </body>
 </html>
