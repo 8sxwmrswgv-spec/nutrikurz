@@ -1,347 +1,1173 @@
-<script>
-  const API_URL = "";
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriKurz | Prémiový výživový kurz</title>
 
-  function setMessage(text, type = "") {
-    const msg = document.getElementById("message");
-    msg.textContent = text;
-    msg.className = "message " + type;
-  }
-
-  async function buyCourse() {
-    const email = document.getElementById("buyEmail").value.trim();
-
-    if (!email) {
-      setMessage("Zadaj e-mail.", "error");
-      return;
+  <style>
+    :root {
+      --bg: #050706;
+      --bg2: #0a0f0c;
+      --card: rgba(18, 22, 20, 0.78);
+      --card2: rgba(27, 34, 30, 0.92);
+      --green: #00ff88;
+      --green2: #00c96b;
+      --green3: #8dffca;
+      --text: #ffffff;
+      --muted: #b7c2bc;
+      --soft: rgba(255,255,255,0.08);
+      --danger: #ff5b5b;
+      --shadow: 0 24px 80px rgba(0,0,0,0.55);
     }
 
-    try {
-      const res = await fetch(`${API_URL}/create-checkout-session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email })
-      });
+    * { box-sizing: border-box; }
 
-      const data = await res.json();
+    html { scroll-behavior: smooth; }
 
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setMessage(data.error || "Nepodarilo sa vytvoriť platbu.", "error");
-      }
-    } catch (err) {
-      setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
-    }
-  }
-
-  async function sendLoginCode() {
-    const email = document.getElementById("loginEmail").value.trim();
-
-    if (!email) {
-      setMessage("Zadaj e-mail.", "error");
-      return;
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(0,255,136,0.22), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(0,201,107,0.16), transparent 30%),
+        radial-gradient(circle at 50% 80%, rgba(0,255,136,0.08), transparent 32%),
+        linear-gradient(180deg, var(--bg) 0%, #020302 100%);
+      overflow-x: hidden;
     }
 
-    try {
-      const res = await fetch(`${API_URL}/send-login-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email })
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setMessage("Kód bol odoslaný na e-mail. Platí 30 minút.", "success");
-      } else {
-        setMessage(data.error || "Nepodarilo sa poslať kód.", "error");
-      }
-    } catch (err) {
-      setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
-    }
-  }
-
-  async function unlock() {
-    const email =
-      document.getElementById("loginEmail").value.trim() ||
-      document.getElementById("buyEmail").value.trim();
-
-    const code = document.getElementById("code").value.trim();
-
-    if (!email || !code) {
-      setMessage("Zadaj e-mail aj kód.", "error");
-      return;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+      z-index: -1;
     }
 
-    try {
-      const res = await fetch(`${API_URL}/verify-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, code })
-      });
+    a { color: inherit; text-decoration: none; }
 
-      const data = await res.json();
-
-      if (data.success) {
-        setMessage("Kurz odomknutý.", "success");
-        showCourse();
-      } else {
-        setMessage(data.error || "Nesprávny alebo expirovaný kód.", "error");
-      }
-    } catch (err) {
-      setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 8%;
+      background: rgba(5, 7, 6, 0.78);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
     }
-  }
 
-  async function checkSession() {
-    try {
-      const res = await fetch(`${API_URL}/me`, {
-        credentials: "include"
-      });
-
-      const data = await res.json();
-
-      if (data.loggedIn) {
-        showCourse(false);
-      }
-    } catch (err) {
-      // nič nerobíme, keď server ešte nebeží
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      font-size: 20px;
     }
-  }
 
-  function showCourse(scroll = true) {
-    document.getElementById("course").style.display = "block";
-    renderLessons();
-
-    if (scroll) {
-      document.getElementById("course").scrollIntoView({ behavior: "smooth" });
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color: #00190d;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 30px rgba(0,255,136,0.35);
+      font-weight: 950;
     }
-  }
 
-  function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 14px;
+    }
 
-  function formatText(value) {
-    return escapeHtml(value).replace(/\n/g, "<br>");
-  }
+    .nav-cta {
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: rgba(0,255,136,0.12);
+      border: 1px solid rgba(0,255,136,0.28);
+      color: var(--green3);
+      font-weight: 900;
+    }
 
-  function mealItem(title, items, kcal) {
-    return `
-      <div class="meal-card">
-        <h5>${title}</h5>
-        <ul>${items.map(item => `<li>${item}</li>`).join("")}</ul>
-        <span class="meal-kcal">cca: ${kcal}</span>
-      </div>
-    `;
-  }
+    .hero {
+      min-height: 86vh;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 54px;
+      align-items: center;
+      padding: 78px 8% 70px;
+      position: relative;
+    }
 
-  function nutritionTable(title, rows, macroName) {
-    return `
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border: 1px solid rgba(0,255,136,0.24);
+      border-radius: 999px;
+      background: rgba(0,255,136,0.08);
+      color: var(--green3);
+      font-size: 14px;
+      font-weight: 900;
+      margin-bottom: 22px;
+    }
+
+    .pulse {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 7px rgba(0,255,136,0.12);
+    }
+
+    .hero h1 {
+      margin: 0;
+      max-width: 900px;
+      font-size: clamp(46px, 7vw, 92px);
+      line-height: 0.94;
+      letter-spacing: -4px;
+    }
+
+    .hero h1 span {
+      color: var(--green);
+      text-shadow: 0 0 42px rgba(0,255,136,0.25);
+    }
+
+    .hero p {
+      max-width: 690px;
+      color: #dce5e0;
+      font-size: 21px;
+      line-height: 1.65;
+      margin: 24px 0 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 34px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 16px;
+      padding: 16px 22px;
+      font-weight: 950;
+      cursor: pointer;
+      transition: 0.22s ease;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color: #00190d;
+      box-shadow: 0 18px 48px rgba(0,255,136,0.22);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.07);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.11);
+    }
+
+    .btn:hover { transform: translateY(-3px); }
+
+    .hero-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 34px;
+      padding: 26px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -80px;
+      top: -80px;
+      border-radius: 50%;
+      background: rgba(0,255,136,0.20);
+      filter: blur(30px);
+    }
+
+    .price-panel {
+      position: relative;
+      z-index: 1;
+      background: rgba(0,0,0,0.34);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 26px;
+      padding: 24px;
+    }
+
+    .price-label { color: var(--muted); font-weight: 800; }
+
+    .price {
+      margin: 10px 0 12px;
+      font-size: 58px;
+      font-weight: 950;
+      letter-spacing: -3px;
+      color: var(--green);
+    }
+
+    .price small { font-size: 20px; color: var(--green3); }
+
+    .feature-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      color: #dbe5df;
+      line-height: 1.45;
+    }
+
+    .check {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: rgba(0,255,136,0.16);
+      color: var(--green);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-weight: 950;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .stat strong {
+      display: block;
+      color: var(--green);
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .stat span { color: var(--muted); font-size: 13px; }
+
+    .section {
+      padding: 74px 8%;
+    }
+
+    .section-head {
+      max-width: 760px;
+      margin-bottom: 34px;
+    }
+
+    .section-head h2 {
+      font-size: clamp(34px, 4vw, 56px);
+      line-height: 1;
+      letter-spacing: -2px;
+      margin: 0 0 16px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .benefits {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+
+    .benefit {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 26px;
+      padding: 24px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+    }
+
+    .benefit-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      background: rgba(0,255,136,0.12);
+      border: 1px solid rgba(0,255,136,0.20);
+      margin-bottom: 18px;
+      font-size: 24px;
+    }
+
+    .benefit h3 { margin: 0 0 10px; font-size: 21px; }
+    .benefit p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+    .checkout-wrap {
+      padding: 38px 8% 66px;
+    }
+
+    .checkout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      background: linear-gradient(135deg, rgba(0,255,136,0.10), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .checkout-card {
+      background: rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 26px;
+      padding: 24px;
+    }
+
+    .checkout-card h2, .checkout-card h3 { margin-top: 0; }
+    .checkout-card p { color: var(--muted); line-height: 1.6; }
+
+    .input-group { display: grid; gap: 10px; margin-top: 16px; }
+
+    label {
+      color: #dce5e0;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      padding: 16px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.34);
+      color: white;
+      font-size: 16px;
+      outline: none;
+      transition: 0.18s ease;
+    }
+
+    input:focus {
+      border-color: rgba(0,255,136,0.65);
+      box-shadow: 0 0 0 4px rgba(0,255,136,0.08);
+    }
+
+    .full { width: 100%; margin-top: 14px; }
+
+    .payment-row {
+      margin-top: 18px;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .pay-pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.09);
+      color: white;
+      font-weight: 900;
+    }
+
+    .message {
+      grid-column: 1 / -1;
+      min-height: 22px;
+      color: var(--muted);
+      padding: 0 4px;
+      font-weight: 800;
+    }
+
+    .error { color: var(--danger); }
+    .success { color: var(--green); }
+
+    #course {
+      display: none;
+      padding: 74px 8% 90px;
+    }
+
+    .course-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 22px;
+      margin-bottom: 34px;
+    }
+
+    .course-top h2 {
+      font-size: clamp(34px, 4vw, 58px);
+      margin: 0 0 12px;
+      letter-spacing: -2px;
+    }
+
+    .course-top p { color: var(--muted); margin: 0; font-size: 18px; line-height: 1.6; }
+
+    .course-badge {
+      white-space: nowrap;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(0,255,136,0.12);
+      border: 1px solid rgba(0,255,136,0.25);
+      color: var(--green3);
+      font-weight: 950;
+    }
+
+    .lessons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .lesson {
+      background: linear-gradient(180deg, var(--card2), var(--card));
+      border-radius: 28px;
+      padding: 20px;
+      box-shadow: 0 20px 58px rgba(0,0,0,0.42);
+      border: 1px solid rgba(255,255,255,0.09);
+      transition: 0.25s ease;
+      overflow: hidden;
+    }
+
+    .lesson:hover {
+      transform: translateY(-7px);
+      box-shadow: 0 26px 80px rgba(0,255,136,0.12);
+      border-color: rgba(0,255,136,0.24);
+    }
+
+    .lesson-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0,255,136,0.12);
+      color: var(--green3);
+      border: 1px solid rgba(0,255,136,0.22);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .duration {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      padding-top: 8px;
+    }
+
+    .lesson h3 {
+      font-size: 25px;
+      color: white;
+      margin: 0 0 16px;
+      letter-spacing: -0.7px;
+    }
+
+    video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 20px;
+      background: #000;
+      display: block;
+      margin-bottom: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .description {
+      background: rgba(0,0,0,0.24);
+      border-left: 4px solid var(--green);
+      border-radius: 16px;
+      padding: 16px;
+      color: #dce5e0;
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .notes {
+      margin-top: 12px;
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.045);
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .footer {
+      padding: 40px 8%;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 1050px) {
+      .hero, .checkout { grid-template-columns: 1fr; }
+      .benefits { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 700px) {
+      .nav { padding: 14px 5%; }
+      .nav-links { display: none; }
+      .hero, .section, .checkout-wrap, #course, .footer { padding-left: 5%; padding-right: 5%; }
+      .hero { padding-top: 48px; min-height: auto; }
+      .hero h1 { letter-spacing: -2px; }
+      .price { font-size: 46px; }
+      .stats { grid-template-columns: 1fr; }
+      .benefits { grid-template-columns: 1fr; }
+      .course-top { align-items: flex-start; flex-direction: column; }
+      .course-badge { white-space: normal; }
+      .lessons { grid-template-columns: 1fr; }
+    }
+
+    /* BONUS: jedálničky + nutričné tabuľky pod videami */
+    .meal-plan {
+      margin-top: 16px;
+      padding: 20px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(0,255,136,0.075), rgba(255,255,255,0.035));
+      border: 1px solid rgba(0,255,136,0.22);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+
+    .meal-plan h4 {
+      margin: 0 0 14px;
+      color: var(--green);
+      font-size: 22px;
+      letter-spacing: -0.4px;
+    }
+
+    .meal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .meal-card {
+      background: rgba(0,0,0,0.26);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .meal-card h5 {
+      margin: 0 0 12px;
+      color: #ffffff;
+      font-size: 18px;
+    }
+
+    .meal-card ul {
+      margin: 8px 0 14px 20px;
+      padding: 0;
+      color: #dce5e0;
+      line-height: 1.6;
+    }
+
+    .meal-card li { margin: 3px 0; }
+
+    .meal-kcal {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(0,255,136,0.12);
+      border: 1px solid rgba(0,255,136,0.22);
+      color: var(--green3);
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .nutrition-tables {
+      margin-top: 18px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .macro-title {
+      margin: 8px 0 8px;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 950;
+    }
+
+    .nutrition-table-wrap {
+      overflow-x: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.24);
+    }
+
+    .nutrition-table {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+      color: #e9f2ed;
+    }
+
+    .nutrition-table th,
+    .nutrition-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 15px;
+    }
+
+    .nutrition-table th {
+      color: var(--green);
+      background: rgba(0,255,136,0.08);
+      font-weight: 950;
+    }
+
+    .nutrition-table tr:last-child td { border-bottom: 0; }
+
+    .formatted-text {
+      white-space: pre-line;
+    }
+
+    @media (max-width: 700px) {
+      .meal-grid { grid-template-columns: 1fr; }
+      .meal-plan { padding: 16px; }
+    }
+
+  </style>
+</head>
+
+<body>
+  <nav class="nav">
+    <a href="#top" class="logo">
+      <span class="logo-mark">N</span>
+      <span>NutriKurz</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="#benefits">Výhody</a>
+      <a href="#checkout">Kúpiť kurz</a>
+      <a href="#course">Lekcie</a>
+    </div>
+
+    <a href="#checkout" class="nav-cta">Získať prístup</a>
+  </nav>
+
+  <main id="top">
+    <section class="hero">
       <div>
-        <div class="macro-title">${title}</div>
-        <div class="nutrition-table-wrap">
-          <table class="nutrition-table">
-            <thead>
-              <tr>
-                <th>Potravina</th>
-                <th>Množstvo</th>
-                <th>Kalórie</th>
-                <th>${macroName}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(row => `
-                <tr>
-                  <td>${row.food}</td>
-                  <td>${row.amount}</td>
-                  <td>${row.kcal}</td>
-                  <td>${row.macro}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
+        <div class="eyebrow"><span class="pulse"></span> Prémiový online kurz výživy</div>
+        <h1>Jedz lepšie. Vyzeraj lepšie. <span>Maj systém.</span></h1>
+        <p>
+          Praktický kurz výživy pre ľudí, ktorí chcú mať jasný plán bez extrémnych diét.
+          Po zaplatení dostaneš jednorazový e-mailový kód a lekcie sa odomknú bezpečne cez server.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#checkout">Kúpiť kurz za 49,99 € →</a>
+          <a class="btn btn-secondary" href="#benefits">Čo získam?</a>
         </div>
       </div>
-    `;
-  }
 
-  function renderMealPlan() {
-    const cutMeals = [
-      { title: "Raňajky", items: ["ovsené vločky (60 g)", "mlieko alebo voda", "proteín alebo jogurt", "ovocie"], kcal: "400 kcal" },
-      { title: "Obed", items: ["kuracie prsia (150 g)", "ryža (100 g varená)", "zelenina"], kcal: "500 kcal" },
-      { title: "Olovrant", items: ["grécky jogurt", "orechy (20 g)"], kcal: "300 kcal" },
-      { title: "Večera", items: ["hovädzie mäso / tuniak / vajcia", "zemiaky alebo pečivo", "zelenina"], kcal: "500 kcal" },
-      { title: "Snack (voliteľné)", items: ["kúsok čokolády / ovocie"], kcal: "200–300 kcal" }
-    ];
-
-    const bulkMeals = [
-      { title: "Raňajky", items: ["ovsené vločky (80 g)", "mlieko", "banán", "arašidové maslo"], kcal: "700 kcal" },
-      { title: "Obed", items: ["kuracie mäso (200 g)", "ryža (150 g varená)", "olej (10 g)"], kcal: "700 kcal" },
-      { title: "Olovrant", items: ["pečivo", "šunka / syr", "orechy"], kcal: "500 kcal" },
-      { title: "Večera", items: ["losos / mäso", "zemiaky / ryža", "zelenina"], kcal: "600 kcal" },
-      { title: "Snack", items: ["smoothie / proteínový nápoj"], kcal: "300 kcal" }
-    ];
-
-    const proteinRows = [
-      { food: "Kuracie prsia", amount: "100 g", kcal: "120 kcal", macro: "22 g" },
-      { food: "Vajcia", amount: "1 ks", kcal: "70 kcal", macro: "6 g" },
-      { food: "Tvaroh", amount: "100 g", kcal: "90 kcal", macro: "11 g" },
-      { food: "Grécky jogurt", amount: "100 g", kcal: "60 kcal", macro: "10 g" }
-    ];
-
-    const carbRows = [
-      { food: "Ryža (varená)", amount: "100 g", kcal: "130 kcal", macro: "28 g" },
-      { food: "Zemiaky", amount: "100 g", kcal: "80 kcal", macro: "17 g" },
-      { food: "Ovsené vločky", amount: "50 g", kcal: "190 kcal", macro: "30 g" },
-      { food: "Banán", amount: "1 ks", kcal: "100 kcal", macro: "25 g" }
-    ];
-
-    const fatRows = [
-      { food: "Olivový olej", amount: "10 g", kcal: "90 kcal", macro: "10 g" },
-      { food: "Orechy", amount: "30 g", kcal: "180 kcal", macro: "15 g" },
-      { food: "Avokádo", amount: "100 g", kcal: "160 kcal", macro: "15 g" }
-    ];
-
-    return `
-      <section class="meal-plan">
-        <h4>🍽️ Ukážkové jedálničky a orientačné hodnoty</h4>
-
-        <div class="meal-card" style="margin-bottom: 14px;">
-          <h5>3. Ukážkový jedálniček — chudnutie (cca 2000 kcal)</h5>
-          <div class="meal-grid">${cutMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
+      <aside class="hero-card">
+        <div class="price-panel">
+          <div class="price-label">Jednorazový prístup</div>
+          <div class="price">49,99 <small>€</small></div>
+          <div class="feature-list">
+            <div class="feature-item"><span class="check">✓</span><span>13 videolekcií uložených mimo verejného priečinka</span></div>
+            <div class="feature-item"><span class="check">✓</span><span>Prihlásenie cez kód platný 30 minút</span></div>
+            <div class="feature-item"><span class="check">✓</span><span>Opätovný prístup cez nový kód bez ďalšej platby</span></div>
+            <div class="feature-item"><span class="check">✓</span><span>Moderný dizajn pripravený pre predaj kurzu</span></div>
+          </div>
+          <div class="stats">
+            <div class="stat"><strong>13</strong><span>lekcií</span></div>
+            <div class="stat"><strong>30m</strong><span>platnosť kódu</span></div>
+            <div class="stat"><strong>49,99€</strong><span>cena</span></div>
+          </div>
         </div>
+      </aside>
+    </section>
 
-        <div class="meal-card">
-          <h5>4. Ukážkový jedálniček — priberanie (cca 2800 kcal)</h5>
-          <div class="meal-grid">${bulkMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
+    <section class="section" id="benefits">
+      <div class="section-head">
+        <h2>Navrhnuté tak, aby kurz pôsobil dôveryhodne a prémiovo.</h2>
+        <p>Predajná časť vysvetlí hodnotu kurzu ešte pred platbou a zákazník presne vie, čo kupuje.</p>
+      </div>
+
+      <div class="benefits">
+        <div class="benefit">
+          <div class="benefit-icon">🥗</div>
+          <h3>Praktická výživa</h3>
+          <p>Obsah je postavený na jednoduchých krokoch, ktoré vie človek použiť v reálnom živote.</p>
         </div>
-
-        <div class="nutrition-tables">
-          ${nutritionTable("Bielkoviny", proteinRows, "Bielkoviny")}
-          ${nutritionTable("Sacharidy", carbRows, "Sacharidy")}
-          ${nutritionTable("Tuky", fatRows, "Tuky")}
+        <div class="benefit">
+          <div class="benefit-icon">🔐</div>
+          <h3>Chránené videá</h3>
+          <p>Videá nie sú verejne v HTML. Načítajú sa cez backend až po prihlásení.</p>
         </div>
-      </section>
-    `;
-  }
+        <div class="benefit">
+          <div class="benefit-icon">💳</div>
+          <h3>Platba cez Stripe</h3>
+          <p>Karty ako Visa a Mastercard rieši Stripe Checkout na platobnej stránke.</p>
+        </div>
+        <div class="benefit">
+          <div class="benefit-icon">⚡</div>
+          <h3>Rýchly prístup</h3>
+          <p>Po platbe príde kód na e-mail. Pri ďalšom prihlásení stačí nový kód.</p>
+        </div>
+      </div>
+    </section>
 
-  function renderLessons() {
-    const lessons = document.getElementById("lessons");
-    lessons.innerHTML = "";
+    <section class="checkout-wrap" id="checkout">
+      <div class="checkout">
+        <div class="checkout-card">
+          <h2>Kúpiť kurz</h2>
+          <p>Zadaj e-mail, zaplať 49,99 € a po úspešnej platbe dostaneš prihlasovací kód.</p>
 
-    const lessonsData = [
-      {
-        "title": "Lekcia 1",
-        "description": "Ako telo pracuje s jedlom (zjednodušene)",
-        "notes": "Výživa NIE JE diéta.\nVýživa = systém, ktorý riadi tvoje telo.\n\nTo znamená:\n• ak ju pochopíš → vieš ovládať váhu aj zdravie\n• ak ju ignoruješ → telo ide proti tebe\n\nOtázka: Myslíš si, že tvoje telo reaguje na jedlo okamžite, alebo až po čase?\nOdpoveď: reaguje okamžite – hormonálne aj metabolicky.",
-        "duration": "Video 1"
-      },
-      {
-        "title": "Lekcia 2",
-        "description": "Metabolizmus bez mýtov",
-        "notes": "Robíš viac pre svoj metabolizmus… alebo proti nemu?",
-        "duration": "Video 2"
-      },
-      {
-        "title": "Lekcia 3",
-        "description": "Ako si zostaviť jedálniček",
-        "notes": "Otvor si chladničku a povedz si:\nJe toto prostredie nastavené na úspech… alebo zlyhanie?",
-        "duration": "Video 3"
-      },
-      {
-        "title": "Lekcia 4",
-        "description": "Ako čítať etikety potravín",
-        "notes": "Choď do obchodu a:\n1. vyber „fit“ produkt\n2. prečítaj etiketu\n3. zisti realitu\n\nPorovnávaj produkty medzi sebou, napríklad 2 jogurty alebo 2 tyčinky. Vyber lepší na základe dát, nie obalu.",
-        "duration": "Video 4"
-      },
-      {
-        "title": "Lekcia 5",
-        "description": "Zdravé vs. nezdravé potraviny",
-        "notes": "Napíš si:\n• 5 jedál, ktoré máš rád\n• uprav ich tak, aby boli výhodnejšie\n\nPríklad: pizza → menšia porcia + bielkoviny + zelenina.\n\nNie je dôležité, čo zješ občas, ale to, čo robíš každý deň.",
-        "duration": "Video 5"
-      },
-      {
-        "title": "Lekcia 6",
-        "description": "Ako jesť vonku a nepriberať",
-        "notes": "Nabudúce keď pôjdeš jesť von:\n1. vedome si vyber jedlo\n2. sleduj porciu\n3. zastav sa, keď si sýty\n\nToto je skill, ktorý mení výsledky.\nNie je dôležité, čo zješ v reštaurácii, ale ako často a koľko.",
-        "duration": "Video 6"
-      },
-      {
-        "title": "Lekcia 7",
-        "description": "Prečo diéty nefungujú",
-        "notes": "Odpovedz si úprimne:\nKoľko diét som už skúšal… a koľko z nich fungovalo dlhodobo?\n\nToto je moment uvedomenia.\nNie je dôležité, čo funguje 2 týždne, ale čo dokážeš robiť 2 roky.",
-        "duration": "Video 7"
-      },
-      {
-        "title": "Lekcia 8",
-        "description": "Ako nastaviť kalorický deficit",
-        "notes": "Vypočítaj si:\n• svoj príjem\n• svoj deficit\n\nNapíš si: Toto je môj plán, nie diéta.\nChudnutie nie je o tom jesť čo najmenej, ale o tom jesť správne množstvo.",
-        "duration": "Video 8"
-      },
-      {
-        "title": "Lekcia 9",
-        "description": "Sem napíš hlavný popis deviatej lekcie.",
-        "notes": "Sem napíš poznámky k lekcii 9.",
-        "duration": "Video 9"
-      },
-      {
-        "title": "Lekcia 10",
-        "description": "Najčastejšie chyby pri chudnutí",
-        "notes": "Napíš si:\n• Moje 3 najväčšie chyby sú…\n\nA začni na nich pracovať.\nNie to, čo robíš občas, ale to, čo robíš každý deň, určuje tvoje výsledky.",
-        "duration": "Video 10"
-      },
-      {
-        "title": "Lekcia 11",
-        "description": "Priberanie a budovanie svalov",
-        "notes": "Nepriberáš, lebo:\n• nemáš konzistentný kalorický nadbytok\n• telo si výdaj prispôsobuje\n• chýba ti stratégia, nie genetika",
-        "duration": "Video 11"
-      },
-      {
-        "title": "Lekcia 12",
-        "description": "Kalorický surplus vysvetlený",
-        "notes": "• surplus je nutný pre rast\n• malý surplus = lepšia kvalita priberania\n• jedlo musí byť strategické, nie náhodné",
-        "duration": "Video 12"
-      },
-      {
-        "title": "Lekcia 13",
-        "description": "Strava pre rast svalov",
-        "notes": "• bielkoviny sú základ\n• sacharidy podporujú výkon\n• regenerácia rozhoduje o raste",
-        "duration": "Video 13"
-      }
-    ];
-
-    lessonsData.forEach((lesson, index) => {
-      const num = index + 1;
-
-      lessons.innerHTML += `
-        <article class="lesson">
-          <div class="lesson-head">
-            <span class="badge">● Lekcia ${num}</span>
-            <span class="duration">${escapeHtml(lesson.duration)}</span>
+          <div class="input-group">
+            <label for="buyEmail">E-mail pre nákup</label>
+            <input type="email" id="buyEmail" placeholder="napriklad@email.com" autocomplete="email" />
           </div>
 
-          <h3>${escapeHtml(lesson.title)}</h3>
+          <button class="btn btn-primary full" onclick="buyCourse()">Kúpiť kurz za 49,99 €</button>
 
-          <video controls controlsList="nodownload" preload="metadata">
-            <source src="../private-videos/video${num}.mp4" type="video/mp4">
-          </video>
+          <div class="payment-row">
+            <span>Platobné možnosti:</span>
+            <span class="pay-pill">Visa</span>
+            <span class="pay-pill">Mastercard</span>
+            <span class="pay-pill">Apple Pay</span>
+            <span class="pay-pill">Google Pay</span>
+            <span class="pay-pill">Stripe</span>
+          </div>
+        </div>
 
-          <div class="description formatted-text">${formatText(lesson.description)}</div>
-          <div class="notes formatted-text">${formatText(lesson.notes)}</div>
-          ${renderMealPlan()}
-        </article>
+        <div class="checkout-card">
+          <h3>Už mám zakúpený kurz</h3>
+          <p>Zadaj e-mail použitý pri nákupe. Pošleme ti nový jednorazový kód bez ďalšej platby.</p>
+
+          <div class="input-group">
+            <label for="loginEmail">E-mail pre prihlásenie</label>
+            <input type="email" id="loginEmail" placeholder="tvoj@email.com" autocomplete="email" />
+          </div>
+
+          <button class="btn btn-secondary full" onclick="sendLoginCode()">Poslať prihlasovací kód</button>
+
+          <div class="input-group">
+            <label for="code">Kód z e-mailu</label>
+            <input type="text" id="code" placeholder="6-miestny kód" inputmode="numeric" />
+          </div>
+
+          <button class="btn btn-primary full" onclick="unlock()">Odomknúť kurz</button>
+        </div>
+
+        <div id="message" class="message"></div>
+      </div>
+    </section>
+
+    <section id="course">
+      <div class="course-top">
+        <div>
+          <h2>Tvoje lekcie</h2>
+          <p>Videá sa zobrazia až po platbe a úspešnom overení kódu. Texty pod lekciami si upravíš v poli <b>lessonsData</b> v spodnom scripte.</p>
+        </div>
+        <div class="course-badge">✅ Kurz odomknutý</div>
+      </div>
+
+      <div class="lessons" id="lessons"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>© NutriKurz</div>
+    <div>Bezpečný prístup cez e-mailový kód a server.</div>
+  </footer>
+
+  <script>
+    const API_URL = "";
+
+    function setMessage(text, type = "") {
+      const msg = document.getElementById("message");
+      msg.textContent = text;
+      msg.className = "message " + type;
+    }
+
+    async function buyCourse() {
+      const email = document.getElementById("buyEmail").value.trim();
+
+      if (!email) {
+        setMessage("Zadaj e-mail.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/create-checkout-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          setMessage(data.error || "Nepodarilo sa vytvoriť platbu.", "error");
+        }
+      } catch (err) {
+        setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+      }
+    }
+
+    async function sendLoginCode() {
+      const email = document.getElementById("loginEmail").value.trim();
+
+      if (!email) {
+        setMessage("Zadaj e-mail.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/send-login-code`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          setMessage("Kód bol odoslaný na e-mail. Platí 30 minút.", "success");
+        } else {
+          setMessage(data.error || "Nepodarilo sa poslať kód.", "error");
+        }
+      } catch (err) {
+        setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+      }
+    }
+
+    async function unlock() {
+      const email =
+        document.getElementById("loginEmail").value.trim() ||
+        document.getElementById("buyEmail").value.trim();
+
+      const code = document.getElementById("code").value.trim();
+
+      if (!email || !code) {
+        setMessage("Zadaj e-mail aj kód.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/verify-code`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, code })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          setMessage("Kurz odomknutý.", "success");
+          showCourse();
+        } else {
+          setMessage(data.error || "Nesprávny alebo expirovaný kód.", "error");
+        }
+      } catch (err) {
+        setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
+      }
+    }
+
+    async function checkSession() {
+      try {
+        const res = await fetch(`${API_URL}/me`, {
+          credentials: "include"
+        });
+
+        const data = await res.json();
+
+        if (data.loggedIn) {
+          showCourse(false);
+        }
+      } catch (err) {
+        // nič nerobíme, keď server ešte nebeží
+      }
+    }
+
+    function showCourse(scroll = true) {
+      document.getElementById("course").style.display = "block";
+      renderLessons();
+
+      if (scroll) {
+        document.getElementById("course").scrollIntoView({ behavior: "smooth" });
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatText(value) {
+      return escapeHtml(value).replace(/\n/g, "<br>");
+    }
+
+    function mealItem(title, items, kcal) {
+      return `
+        <div class="meal-card">
+          <h5>${title}</h5>
+          <ul>${items.map(item => `<li>${item}</li>`).join("")}</ul>
+          <span class="meal-kcal">cca: ${kcal}</span>
+        </div>
       `;
-    });
-  }
+    }
 
-  checkSession();
-</script>
+    function nutritionTable(title, rows, macroName) {
+      return `
+        <div>
+          <div class="macro-title">${title}</div>
+          <div class="nutrition-table-wrap">
+            <table class="nutrition-table">
+              <thead>
+                <tr>
+                  <th>Potravina</th>
+                  <th>Množstvo</th>
+                  <th>Kalórie</th>
+                  <th>${macroName}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(row => `
+                  <tr>
+                    <td>${row.food}</td>
+                    <td>${row.amount}</td>
+                    <td>${row.kcal}</td>
+                    <td>${row.macro}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMealPlan() {
+      const cutMeals = [
+        { title: "Raňajky", items: ["ovsené vločky (60 g)", "mlieko alebo voda", "proteín alebo jogurt", "ovocie"], kcal: "400 kcal" },
+        { title: "Obed", items: ["kuracie prsia (150 g)", "ryža (100 g varená)", "zelenina"], kcal: "500 kcal" },
+        { title: "Olovrant", items: ["grécky jogurt", "orechy (20 g)"], kcal: "300 kcal" },
+        { title: "Večera", items: ["hovädzie mäso / tuniak / vajcia", "zemiaky alebo pečivo", "zelenina"], kcal: "500 kcal" },
+        { title: "Snack (voliteľné)", items: ["kúsok čokolády / ovocie"], kcal: "200–300 kcal" }
+      ];
+
+      const bulkMeals = [
+        { title: "Raňajky", items: ["ovsené vločky (80 g)", "mlieko", "banán", "arašidové maslo"], kcal: "700 kcal" },
+        { title: "Obed", items: ["kuracie mäso (200 g)", "ryža (150 g varená)", "olej (10 g)"], kcal: "700 kcal" },
+        { title: "Olovrant", items: ["pečivo", "šunka / syr", "orechy"], kcal: "500 kcal" },
+        { title: "Večera", items: ["losos / mäso", "zemiaky / ryža", "zelenina"], kcal: "600 kcal" },
+        { title: "Snack", items: ["smoothie / proteínový nápoj"], kcal: "300 kcal" }
+      ];
+
+      const proteinRows = [
+        { food: "Kuracie prsia", amount: "100 g", kcal: "120 kcal", macro: "22 g" },
+        { food: "Vajcia", amount: "1 ks", kcal: "70 kcal", macro: "6 g" },
+        { food: "Tvaroh", amount: "100 g", kcal: "90 kcal", macro: "11 g" },
+        { food: "Grécky jogurt", amount: "100 g", kcal: "60 kcal", macro: "10 g" }
+      ];
+
+      const carbRows = [
+        { food: "Ryža (varená)", amount: "100 g", kcal: "130 kcal", macro: "28 g" },
+        { food: "Zemiaky", amount: "100 g", kcal: "80 kcal", macro: "17 g" },
+        { food: "Ovsené vločky", amount: "50 g", kcal: "190 kcal", macro: "30 g" },
+        { food: "Banán", amount: "1 ks", kcal: "100 kcal", macro: "25 g" }
+      ];
+
+      const fatRows = [
+        { food: "Olivový olej", amount: "10 g", kcal: "90 kcal", macro: "10 g" },
+        { food: "Orechy", amount: "30 g", kcal: "180 kcal", macro: "15 g" },
+        { food: "Avokádo", amount: "100 g", kcal: "160 kcal", macro: "15 g" }
+      ];
+
+      return `
+        <section class="meal-plan">
+          <h4>🍽️ Ukážkové jedálničky a orientačné hodnoty</h4>
+
+          <div class="meal-card" style="margin-bottom: 14px;">
+            <h5>3. Ukážkový jedálniček — chudnutie (cca 2000 kcal)</h5>
+            <div class="meal-grid">${cutMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
+          </div>
+
+          <div class="meal-card">
+            <h5>4. Ukážkový jedálniček — priberanie (cca 2800 kcal)</h5>
+            <div class="meal-grid">${bulkMeals.map(meal => mealItem(meal.title, meal.items, meal.kcal)).join("")}</div>
+          </div>
+
+          <div class="nutrition-tables">
+            ${nutritionTable("Bielkoviny", proteinRows, "Bielkoviny")}
+            ${nutritionTable("Sacharidy", carbRows, "Sacharidy")}
+            ${nutritionTable("Tuky", fatRows, "Tuky")}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderLessons() {
+      const lessons = document.getElementById("lessons");
+      lessons.innerHTML = "";
+
+      // TU SI UPRAVUJEŠ NADPISY, POPISY A POZNÁMKY POD VIDEAMI
+      const lessonsData = [
+        {
+                "title": "Lekcia 1",
+                "description": "Ako telo pracuje s jedlom (zjednodušene)",
+                "notes": "Výživa NIE JE diéta.\nVýživa = systém, ktorý riadi tvoje telo.\n\nTo znamená:\n• ak ju pochopíš → vieš ovládať váhu aj zdravie\n• ak ju ignoruješ → telo ide proti tebe\n\nOtázka: Myslíš si, že tvoje telo reaguje na jedlo okamžite, alebo až po čase?\nOdpoveď: reaguje okamžite – hormonálne aj metabolicky.",
+                "duration": "Video 1"
+        },
+        {
+                "title": "Lekcia 2",
+                "description": "Metabolizmus bez mýtov",
+                "notes": "Robíš viac pre svoj metabolizmus… alebo proti nemu?",
+                "duration": "Video 2"
+        },
+        {
+                "title": "Lekcia 3",
+                "description": "Ako si zostaviť jedálniček",
+                "notes": "Otvor si chladničku a povedz si:\nJe toto prostredie nastavené na úspech… alebo zlyhanie?",
+                "duration": "Video 3"
+        },
+        {
+                "title": "Lekcia 4",
+                "description": "Ako čítať etikety potravín",
+                "notes": "Choď do obchodu a:\n1. vyber „fit“ produkt\n2. prečítaj etiketu\n3. zisti realitu\n\nPorovnávaj produkty medzi sebou, napríklad 2 jogurty alebo 2 tyčinky. Vyber lepší na základe dát, nie obalu.",
+                "duration": "Video 4"
+        },
+        {
+                "title": "Lekcia 5",
+                "description": "Zdravé vs. nezdravé potraviny",
+                "notes": "Napíš si:\n• 5 jedál, ktoré máš rád\n• uprav ich tak, aby boli výhodnejšie\n\nPríklad: pizza → menšia porcia + bielkoviny + zelenina.\n\nNie je dôležité, čo zješ občas, ale to, čo robíš každý deň.",
+                "duration": "Video 5"
+        },
+        {
+                "title": "Lekcia 6",
+                "description": "Ako jesť vonku a nepriberať",
+                "notes": "Nabudúce keď pôjdeš jesť von:\n1. vedome si vyber jedlo\n2. sleduj porciu\n3. zastav sa, keď si sýty\n\nToto je skill, ktorý mení výsledky.\nNie je dôležité, čo zješ v reštaurácii, ale ako často a koľko.",
+                "duration": "Video 6"
+        },
+        {
+                "title": "Lekcia 7",
+                "description": "Prečo diéty nefungujú",
+                "notes": "Odpovedz si úprimne:\nKoľko diét som už skúšal… a koľko z nich fungovalo dlhodobo?\n\nToto je moment uvedomenia.\nNie je dôležité, čo funguje 2 týždne, ale čo dokážeš robiť 2 roky.",
+                "duration": "Video 7"
+        },
+        {
+                "title": "Lekcia 8",
+                "description": "Ako nastaviť kalorický deficit",
+                "notes": "Vypočítaj si:\n• svoj príjem\n• svoj deficit\n\nNapíš si: Toto je môj plán, nie diéta.\nChudnutie nie je o tom jesť čo najmenej, ale o tom jesť správne množstvo.",
+                "duration": "Video 8"
+        },
+        {
+                "title": "Lekcia 9",
+                "description": "Sem napíš hlavný popis deviatej lekcie.",
+                "notes": "Sem napíš poznámky k lekcii 9.",
+                "duration": "Video 9"
+        },
+        {
+                "title": "Lekcia 10",
+                "description": "Najčastejšie chyby pri chudnutí",
+                "notes": "Napíš si:\n• Moje 3 najväčšie chyby sú…\n\nA začni na nich pracovať.\nNie to, čo robíš občas, ale to, čo robíš každý deň, určuje tvoje výsledky.",
+                "duration": "Video 10"
+        },
+        {
+                "title": "Lekcia 11",
+                "description": "Priberanie a budovanie svalov",
+                "notes": "Nepriberáš, lebo:\n• nemáš konzistentný kalorický nadbytok\n• telo si výdaj prispôsobuje\n• chýba ti stratégia, nie genetika",
+                "duration": "Video 11"
+        },
+        {
+                "title": "Lekcia 12",
+                "description": "Kalorický surplus vysvetlený",
+                "notes": "• surplus je nutný pre rast\n• malý surplus = lepšia kvalita priberania\n• jedlo musí byť strategické, nie náhodné",
+                "duration": "Video 12"
+        },
+        {
+                "title": "Lekcia 13",
+                "description": "Strava pre rast svalov",
+                "notes": "• bielkoviny sú základ\n• sacharidy podporujú výkon\n• regenerácia rozhoduje o raste",
+                "duration": "Video 13"
+        }
+];
+
+      lessonsData.forEach((lesson, index) => {
+        const num = index + 1;
+
+        lessons.innerHTML += `
+          <article class="lesson">
+            <div class="lesson-head">
+              <span class="badge">● Lekcia ${num}</span>
+              <span class="duration">${escapeHtml(lesson.duration)}</span>
+            </div>
+
+            <h3>${escapeHtml(lesson.title)}</h3>
+
+            <video controls controlsList="nodownload" preload="metadata">
+              <source src="../private-videos/video${num}.mp4" type="video/mp4">
+            </video>
+
+            <div class="description formatted-text">${formatText(lesson.description)}</div>
+            <div class="notes formatted-text">${formatText(lesson.notes)}</div>
+            ${renderMealPlan()}
+          </article>
+        `;
+      });
+    }
+
+    checkSession();
+  </script>
+</body>
+</html>
