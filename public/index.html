@@ -824,6 +824,7 @@
   <script>
     (() => {
       const API_URL = "";
+      const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/bJe00j0sHgL93sGb0W63K00";
 
       // ADMIN TEST PRÍSTUP
       // ZMEŇ SI EMAIL NA SVOJ. Tento bypass je iba na testovanie.
@@ -836,7 +837,7 @@
         msg.className = "message " + type;
       }
 
-      async function buyCourse() {
+      function buyCourse() {
         const email = document.getElementById("buyEmail").value.trim();
 
         if (!email) {
@@ -844,24 +845,9 @@
           return;
         }
 
-        try {
-          const res = await fetch(`${API_URL}/create-checkout-session`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ email })
-          });
-
-          const data = await res.json();
-
-          if (data.url) {
-            window.location.href = data.url;
-          } else {
-            setMessage(data.error || "Nepodarilo sa vytvoriť platbu.", "error");
-          }
-        } catch (err) {
-          setMessage("Server neodpovedá. Skontroluj, či beží npm start.", "error");
-        }
+        const stripeUrl = new URL(STRIPE_PAYMENT_LINK);
+        stripeUrl.searchParams.set("prefilled_email", email);
+        window.location.href = stripeUrl.toString();
       }
 
       async function sendLoginCode() {
@@ -940,6 +926,15 @@
       }
 
       async function checkSession() {
+        const params = new URLSearchParams(window.location.search);
+
+        if (params.get("paid") === "true") {
+          sessionStorage.setItem("nutrikurz_unlocked", "1");
+          setMessage("Platba prebehla úspešne. Kurz je odomknutý.", "success");
+          showCourse(false);
+          return;
+        }
+
         if (
           sessionStorage.getItem("nutrikurz_admin_unlocked") === "1" ||
           sessionStorage.getItem("nutrikurz_unlocked") === "1"
