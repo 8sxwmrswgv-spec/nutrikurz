@@ -209,21 +209,49 @@ app.post("/verify-code", (req, res) => {
   res.json({ success: true });
 });
 
-// ====== ADMIN PANEL (PRIDANÉ) ======
+// ====== ADMIN PANEL (UPGRADE) ======
 
 app.get("/admin", (req, res) => {
   res.send(`
     <h2>Admin panel</h2>
+
     <input id="email" placeholder="email" />
     <button onclick="load()">Načítať</button>
+    <button onclick="resend()">Znovu poslať kód</button>
+
     <pre id="out"></pre>
 
     <script>
       async function load() {
         const email = document.getElementById("email").value;
+
         const res = await fetch("/admin/data?email=" + encodeURIComponent(email));
         const data = await res.json();
+
         document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+      }
+
+      async function resend() {
+        const email = document.getElementById("email").value;
+
+        if (!email) {
+          alert("Zadaj email");
+          return;
+        }
+
+        const res = await fetch("/admin/resend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          alert("Kód bol znovu odoslaný");
+        } else {
+          alert(data.error || "Chyba");
+        }
       }
     </script>
   `);
@@ -246,6 +274,23 @@ app.get("/admin/data", (req, res) => {
   res.json({ customer, codes });
 });
 
-app.listen(3000, () => {
-  console.log("Server beží");
+app.post("/admin/resend", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").toLowerCase();
+
+    const customer = db.prepare(`
+      SELECT * FROM customers WHERE email = ? AND paid = 1
+    `).get(email);
+
+    if (!customer) {
+      return res.json({ error: "Nezaplatil" });
+    }
+
+    await sendCode(email);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ error: "Chyba pri odosielaní" });
+  }
 });
