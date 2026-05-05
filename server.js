@@ -34,6 +34,7 @@ db.exec(`
 
 app.use("/stripe-webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
   name: "nutrikurz_session",
@@ -69,6 +70,10 @@ function generateCode() {
 }
 
 async function sendCode(email) {
+  if (!email) {
+    throw new Error("Email missing in sendCode()");
+  }
+
   const code = generateCode();
   const expiresAt = Date.now() + 30 * 60 * 1000;
 
@@ -91,6 +96,7 @@ function requireLogin(req, res, next) {
   }
 
   const email = normalizeEmail(req.session.email);
+
   const customer = db.prepare(`
     SELECT * FROM customers WHERE email = ? AND paid = 1
   `).get(email);
@@ -102,11 +108,11 @@ function requireLogin(req, res, next) {
   next();
 }
 
-// ===== ADMIN CHECK =====
 function checkAdmin(req, res, next) {
   if (req.query.password !== process.env.ADMIN_PASSWORD) {
     return res.send("Zlé heslo");
   }
+
   next();
 }
 
@@ -127,28 +133,37 @@ app.post("/create-checkout-session", async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
 
+    if (!email) {
+      return res.status(400).json({ error: "Email je povinný." });
+    }
+
     const sessionStripe = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
       payment_method_types: ["card"],
-      line_items: [{
-        price_data: {
-          currency: "eur",
-          product_data: { name: "NutriKurz" },
-          unit_amount: 4999
-        },
-        quantity: 1
-      }],
-      success_url: `${process.env.FRONTEND_URL}/?payment=success`,
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: { name: "NutriKurz" },
+            unit_amount: 4999
+          },
+          quantity: 1
+        }
+      ],
+      success_url: `${process.env.FRONTEND_URL}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/?payment=cancelled`,
       metadata: { email }
     });
 
     res.json({ url: sessionStripe.url });
-  } catch {
+  } catch (err) {
+    console.error("Checkout session error:", err);
     res.status(500).json({ error: "Chyba pri vytváraní platby." });
   }
 });
+
+// ===== STRIPE WEBHOOK =====
 
 app.post("/stripe-webhook", async (req, res) => {
   let event;
@@ -159,39 +174,65 @@ app.post("/stripe-webhook", async (req, res) => {
       req.headers["stripe-signature"],
       process.env.STRIPE_WEBHOOK_SECRET
     );
-  } catch {
-    return res.status(400).send("Webhook error");
+  } catch (err) {
+    console.error("Stripe webhook signature error:", err.message);
+    return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
-  if (event.type === "checkout.session.completed") {
-    const sessionStripe = event.data.object;
-    const email = normalizeEmail(sessionStripe.customer_email || sessionStripe.metadata.email);
+  try {
+    if (event.type === "checkout.session.completed") {
+      const sessionStripe = event.data.object;
 
-    db.prepare(`
-      INSERT INTO customers (email, paid, created_at)
-      VALUES (?, 1, ?)
-      ON CONFLICT(email) DO UPDATE SET paid = 1
-    `).run(email, Date.now());
+      const email = normalizeEmail(
+        sessionStripe.customer_details?.email ||
+        sessionStripe.customer_email ||
+        sessionStripe.metadata?.email
+      );
 
-    await sendCode(email);
+      if (!email) {
+        console.error("Webhook error: email missing", sessionStripe.id);
+        return res.status(400).send("Email missing");
+      }
+
+      db.prepare(`
+        INSERT INTO customers (email, paid, created_at)
+        VALUES (?, 1, ?)
+        ON CONFLICT(email) DO UPDATE SET 
+          paid = 1,
+          created_at = excluded.created_at
+      `).run(email, Date.now());
+
+      await sendCode(email);
+
+      console.log("Payment processed:", email);
+    }
+
+    return res.json({ received: true });
+  } catch (err) {
+    console.error("Webhook processing error:", err);
+    return res.status(500).send("Webhook processing failed");
   }
-
-  res.json({ received: true });
 });
 
 app.post("/send-login-code", async (req, res) => {
-  const email = normalizeEmail(req.body.email);
+  try {
+    const email = normalizeEmail(req.body.email);
 
-  const customer = db.prepare(`
-    SELECT * FROM customers WHERE email = ? AND paid = 1
-  `).get(email);
+    const customer = db.prepare(`
+      SELECT * FROM customers WHERE email = ? AND paid = 1
+    `).get(email);
 
-  if (!customer) {
-    return res.status(403).json({ error: "Nemá zakúpený kurz." });
+    if (!customer) {
+      return res.status(403).json({ error: "Nemá zakúpený kurz." });
+    }
+
+    await sendCode(email);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Send login code error:", err);
+    res.status(500).json({ error: "Nepodarilo sa odoslať kód." });
   }
-
-  await sendCode(email);
-  res.json({ success: true });
 });
 
 app.post("/verify-code", (req, res) => {
@@ -205,24 +246,41 @@ app.post("/verify-code", (req, res) => {
     LIMIT 1
   `).get(email, code);
 
-  if (!row) return res.json({ error: "Zlý kód" });
+  if (!row) {
+    return res.json({ error: "Zlý kód" });
+  }
 
   if (Date.now() > row.expires_at) {
     return res.json({ error: "Expiroval" });
   }
 
-  db.prepare(`UPDATE codes SET used = 1 WHERE rowid = ?`).run(row.rowid);
+  db.prepare(`
+    UPDATE codes SET used = 1 WHERE rowid = ?
+  `).run(row.rowid);
+
   req.session.email = email;
 
   res.json({ success: true });
 });
 
 // ===== ADMIN PANEL =====
-app.get("/admin", checkAdmin, (req, res) => {
-  const codes = db.prepare(`SELECT * FROM codes ORDER BY expires_at DESC`).all();
 
-  let html = `<h1>Admin panel</h1><table border="1" cellpadding="10">
-  <tr><th>Email</th><th>Kód</th><th>Expirácia</th><th>Použitý</th><th>Akcia</th></tr>`;
+app.get("/admin", checkAdmin, (req, res) => {
+  const codes = db.prepare(`
+    SELECT * FROM codes ORDER BY expires_at DESC
+  `).all();
+
+  let html = `
+    <h1>Admin panel</h1>
+    <table border="1" cellpadding="10">
+      <tr>
+        <th>Email</th>
+        <th>Kód</th>
+        <th>Expirácia</th>
+        <th>Použitý</th>
+        <th>Akcia</th>
+      </tr>
+  `;
 
   codes.forEach(c => {
     html += `
@@ -242,12 +300,25 @@ app.get("/admin", checkAdmin, (req, res) => {
   });
 
   html += "</table>";
+
   res.send(html);
 });
 
 app.post("/admin/resend", checkAdmin, async (req, res) => {
-  await sendCode(req.body.email);
-  res.send("Odoslané");
+  try {
+    const email = normalizeEmail(req.body.email);
+
+    if (!email) {
+      return res.status(400).send("Email chýba");
+    }
+
+    await sendCode(email);
+
+    res.send("Odoslané");
+  } catch (err) {
+    console.error("Admin resend error:", err);
+    res.status(500).send("Nepodarilo sa odoslať");
+  }
 });
 
 app.get("/video/:filename", requireLogin, (req, res) => {
@@ -261,6 +332,8 @@ app.get("/video/:filename", requireLogin, (req, res) => {
   fs.createReadStream(videoPath).pipe(res);
 });
 
-app.listen(3000, () => {
-  console.log("Server beží");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server beží na porte ${PORT}`);
 });
