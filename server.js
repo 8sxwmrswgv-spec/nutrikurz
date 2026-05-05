@@ -21,7 +21,9 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS customers (
     email TEXT PRIMARY KEY,
     paid INTEGER DEFAULT 0,
-    created_at INTEGER
+    created_at INTEGER,
+    amount INTEGER DEFAULT 0,
+    currency TEXT DEFAULT 'eur'
   );
 
   CREATE TABLE IF NOT EXISTS codes (
@@ -31,6 +33,46 @@ db.exec(`
     used INTEGER DEFAULT 0
   );
 `);
+
+const customerColumns = db.prepare(`PRAGMA table_info(customers)`).all().map(c => c.name);
+
+if (!customerColumns.includes("amount")) {
+  db.exec(`ALTER TABLE customers ADD COLUMN amount INTEGER DEFAULT 0`);
+}
+
+if (!customerColumns.includes("currency")) {
+  db.exec(`ALTER TABLE customers ADD COLUMN currency TEXT DEFAULT 'eur'`);
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function generateCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function cleanupOldAdminRecords() {
+  const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
+
+  db.prepare(`
+    DELETE FROM codes
+    WHERE expires_at < ?
+  `).run(fifteenDaysAgo);
+
+  db.prepare(`
+    DELETE FROM customers
+    WHERE created_at < ?
+  `).run(fifteenDaysAgo);
+
+  console.log("Old admin records cleaned");
+}
+
+cleanupOldAdminRecords();
+
+setInterval(() => {
+  cleanupOldAdminRecords();
+}, 60 * 60 * 1000);
 
 app.use("/stripe-webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
@@ -60,14 +102,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS
   }
 });
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
-
-function generateCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 async function sendCode(email) {
   if (!email) {
@@ -116,8 +150,6 @@ function checkAdmin(req, res, next) {
   next();
 }
 
-// ===== ROUTES =====
-
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -163,8 +195,6 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// ===== STRIPE WEBHOOK =====
-
 app.post("/stripe-webhook", async (req, res) => {
   let event;
 
@@ -194,17 +224,22 @@ app.post("/stripe-webhook", async (req, res) => {
         return res.status(400).send("Email missing");
       }
 
+      const amount = sessionStripe.amount_total || 0;
+      const currency = sessionStripe.currency || "eur";
+
       db.prepare(`
-        INSERT INTO customers (email, paid, created_at)
-        VALUES (?, 1, ?)
+        INSERT INTO customers (email, paid, created_at, amount, currency)
+        VALUES (?, 1, ?, ?, ?)
         ON CONFLICT(email) DO UPDATE SET 
           paid = 1,
-          created_at = excluded.created_at
-      `).run(email, Date.now());
+          created_at = excluded.created_at,
+          amount = excluded.amount,
+          currency = excluded.currency
+      `).run(email, Date.now(), amount, currency);
 
       await sendCode(email);
 
-      console.log("Payment processed:", email);
+      console.log("Payment processed:", email, amount, currency);
     }
 
     return res.json({ received: true });
@@ -263,12 +298,23 @@ app.post("/verify-code", (req, res) => {
   res.json({ success: true });
 });
 
-// ===== ADMIN PANEL =====
-
 app.get("/admin", checkAdmin, (req, res) => {
-  const codes = db.prepare(`
-    SELECT * FROM codes ORDER BY expires_at DESC
-  `).all();
+  const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
+
+  const rows = db.prepare(`
+    SELECT 
+      codes.email,
+      codes.code,
+      codes.expires_at,
+      codes.used,
+      customers.amount,
+      customers.currency,
+      customers.created_at
+    FROM codes
+    LEFT JOIN customers ON customers.email = codes.email
+    WHERE codes.expires_at >= ?
+    ORDER BY codes.expires_at DESC
+  `).all(fifteenDaysAgo);
 
   let html = `
     <h1>Admin panel</h1>
@@ -278,17 +324,29 @@ app.get("/admin", checkAdmin, (req, res) => {
         <th>Kód</th>
         <th>Expirácia</th>
         <th>Použitý</th>
+        <th>Suma</th>
+        <th>Kúpené</th>
         <th>Akcia</th>
       </tr>
   `;
 
-  codes.forEach(c => {
+  rows.forEach(c => {
+    const amountText = c.amount
+      ? `${(c.amount / 100).toFixed(2)} ${(c.currency || "eur").toUpperCase()}`
+      : "-";
+
+    const boughtAt = c.created_at
+      ? new Date(c.created_at).toLocaleString()
+      : "-";
+
     html += `
       <tr>
         <td>${c.email}</td>
         <td>${c.code}</td>
         <td>${new Date(c.expires_at).toLocaleString()}</td>
         <td>${c.used}</td>
+        <td>${amountText}</td>
+        <td>${boughtAt}</td>
         <td>
           <form method="POST" action="/admin/resend?password=${process.env.ADMIN_PASSWORD}">
             <input type="hidden" name="email" value="${c.email}" />
