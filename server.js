@@ -1,4 +1,3 @@
-// ====== TVOJ PÔVODNÝ KÓD (nezmenený) ======
 import express from "express";
 import dotenv from "dotenv";
 import Stripe from "stripe";
@@ -209,7 +208,6 @@ app.post("/verify-code", (req, res) => {
   res.json({ success: true });
 });
 
-// ====== ADMIN PANEL (UPGRADE) ======
 
 app.get("/admin", (req, res) => {
   res.send(`
