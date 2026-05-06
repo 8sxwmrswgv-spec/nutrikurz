@@ -22,7 +22,6 @@
     }
 
     * { box-sizing: border-box; }
-
     html { scroll-behavior: smooth; }
 
     body {
@@ -93,6 +92,8 @@
       font-weight: 700;
       font-size: 14px;
     }
+
+    .nav-links a:hover { color: var(--green); }
 
     .nav-cta {
       padding: 12px 18px;
@@ -283,9 +284,7 @@
 
     .stat span { color: var(--muted); font-size: 13px; }
 
-    .section {
-      padding: 74px 8%;
-    }
+    .section { padding: 74px 8%; }
 
     .section-head {
       max-width: 760px;
@@ -335,9 +334,7 @@
     .benefit h3 { margin: 0 0 10px; font-size: 21px; }
     .benefit p { margin: 0; color: var(--muted); line-height: 1.6; }
 
-    .checkout-wrap {
-      padding: 38px 8% 66px;
-    }
+    .checkout-wrap { padding: 38px 8% 66px; }
 
     .checkout {
       display: grid;
@@ -362,11 +359,7 @@
 
     .input-group { display: grid; gap: 10px; margin-top: 16px; }
 
-    label {
-      color: #dce5e0;
-      font-weight: 900;
-      font-size: 14px;
-    }
+    label { color: #dce5e0; font-weight: 900; font-size: 14px; }
 
     input {
       width: 100%;
@@ -417,10 +410,7 @@
     .error { color: var(--danger); }
     .success { color: var(--green); }
 
-    #course {
-      display: none;
-      padding: 74px 8% 90px;
-    }
+    #course { display: none; padding: 74px 8% 90px; }
 
     .course-top {
       display: flex;
@@ -545,26 +535,6 @@
       flex-wrap: wrap;
     }
 
-    @media (max-width: 1050px) {
-      .hero, .checkout { grid-template-columns: 1fr; }
-      .benefits { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (max-width: 700px) {
-      .nav { padding: 14px 5%; }
-      .nav-links { display: none; }
-      .hero, .section, .checkout-wrap, #course, .footer { padding-left: 5%; padding-right: 5%; }
-      .hero { padding-top: 48px; min-height: auto; }
-      .hero h1 { letter-spacing: -2px; }
-      .price { font-size: 46px; }
-      .stats { grid-template-columns: 1fr; }
-      .benefits { grid-template-columns: 1fr; }
-      .course-top { align-items: flex-start; flex-direction: column; }
-      .course-badge { white-space: normal; }
-      .lessons { grid-template-columns: 1fr; }
-    }
-
-    /* BONUS: jedálničky + nutričné tabuľky pod videami */
     .meal-plan {
       margin-top: 16px;
       padding: 20px;
@@ -595,19 +565,8 @@
       padding: 16px;
     }
 
-    .meal-card h5 {
-      margin: 0 0 12px;
-      color: #ffffff;
-      font-size: 18px;
-    }
-
-    .meal-card ul {
-      margin: 8px 0 14px 20px;
-      padding: 0;
-      color: #dce5e0;
-      line-height: 1.6;
-    }
-
+    .meal-card h5 { margin: 0 0 12px; color: #ffffff; font-size: 18px; }
+    .meal-card ul { margin: 8px 0 14px 20px; padding: 0; color: #dce5e0; line-height: 1.6; }
     .meal-card li { margin: 3px 0; }
 
     .meal-kcal {
@@ -622,18 +581,9 @@
       font-size: 13px;
     }
 
-    .nutrition-tables {
-      margin-top: 18px;
-      display: grid;
-      gap: 16px;
-    }
+    .nutrition-tables { margin-top: 18px; display: grid; gap: 16px; }
 
-    .macro-title {
-      margin: 8px 0 8px;
-      color: #ffffff;
-      font-size: 20px;
-      font-weight: 950;
-    }
+    .macro-title { margin: 8px 0 8px; color: #ffffff; font-size: 20px; font-weight: 950; }
 
     .nutrition-table-wrap {
       overflow-x: auto;
@@ -664,16 +614,77 @@
     }
 
     .nutrition-table tr:last-child td { border-bottom: 0; }
+    .formatted-text { white-space: pre-line; }
 
-    .formatted-text {
-      white-space: pre-line;
+    .legal-section {
+      padding: 74px 8%;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .legal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+    }
+
+    .legal-card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 26px;
+      padding: 24px;
+      color: var(--muted);
+      line-height: 1.65;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+    }
+
+    .legal-card h2,
+    .legal-card h3 {
+      color: white;
+      margin-top: 0;
+    }
+
+    .legal-card a {
+      color: var(--green);
+      font-weight: 900;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    .legal-card ul { padding-left: 20px; }
+
+    .legal-note {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.18);
+      color: #dce5e0;
+    }
+
+    @media (max-width: 1050px) {
+      .hero, .checkout { grid-template-columns: 1fr; }
+      .benefits { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 900px) {
+      .legal-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 700px) {
+      .nav { padding: 14px 5%; }
+      .nav-links { display: none; }
+      .hero, .section, .checkout-wrap, #course, .footer, .legal-section { padding-left: 5%; padding-right: 5%; }
+      .hero { padding-top: 48px; min-height: auto; }
+      .hero h1 { letter-spacing: -2px; }
+      .price { font-size: 46px; }
+      .stats { grid-template-columns: 1fr; }
+      .benefits { grid-template-columns: 1fr; }
+      .course-top { align-items: flex-start; flex-direction: column; }
+      .course-badge { white-space: normal; }
+      .lessons { grid-template-columns: 1fr; }
       .meal-grid { grid-template-columns: 1fr; }
       .meal-plan { padding: 16px; }
     }
-
   </style>
 </head>
 
@@ -688,6 +699,9 @@
       <a href="#benefits">Výhody</a>
       <a href="#checkout">Kúpiť kurz</a>
       <a href="#course">Lekcie</a>
+      <a href="#faq">FAQ</a>
+      <a href="#podmienky">Podmienky</a>
+      <a href="#kontakt">Kontakt</a>
     </div>
 
     <a href="#checkout" class="nav-cta">Získať prístup</a>
@@ -814,21 +828,112 @@
 
       <div class="lessons" id="lessons"></div>
     </section>
+
+    <section class="legal-section" id="faq">
+      <div class="section-head">
+        <h2>FAQ, podmienky a kontakt</h2>
+        <p>Všetko dôležité pred nákupom kurzu na jednom mieste.</p>
+      </div>
+
+      <div class="legal-grid">
+        <div class="legal-card">
+          <h3>FAQ</h3>
+
+          <p><b>Čo dostanem po kúpe?</b><br>
+          Po úspešnej platbe dostaneš prístup ku kurzu cez e-mailový kód.</p>
+
+          <p><b>Ako dlho platí prihlasovací kód?</b><br>
+          Kód je jednorazový a platí 30 minút.</p>
+
+          <p><b>Môžem sa prihlásiť neskôr znova?</b><br>
+          Áno. Použiješ rovnaký e-mail a systém ti pošle nový kód.</p>
+
+          <p><b>Je kurz náhradou lekára?</b><br>
+          Nie. Kurz je vzdelávací materiál a nenahrádza lekárske vyšetrenie, diagnostiku ani individuálnu liečbu.</p>
+
+          <p><b>Pre koho je kurz vhodný?</b><br>
+          Pre ľudí, ktorí chcú lepšie pochopiť výživu, chudnutie, priberanie a tvorbu jedálnička bez extrémov.</p>
+
+          <p><b>Výsledky sa môžu líšiť</b><br>
+          Každý človek reaguje na stravu individuálne. Kurz negarantuje konkrétne výsledky.</p>
+        </div>
+
+        <div class="legal-card" id="podmienky">
+          <h3>Obchodné podmienky</h3>
+
+          <p>
+            Zakúpením kurzu zákazník získava prístup k digitálnemu vzdelávaciemu obsahu v oblasti výživy.
+            Kurz je poskytovaný online formou.
+          </p>
+
+          <p>
+            Obsah kurzu slúži výhradne na informačné a vzdelávacie účely. Nenahrádza odborné lekárske,
+            výživové ani terapeutické odporúčania.
+          </p>
+
+          <p>
+            Zákazník je zodpovedný za správne uvedenie e-mailovej adresy pri objednávke.
+            Na túto adresu bude doručený prihlasovací kód.
+          </p>
+
+          <p>
+            Zakúpený prístup je určený iba pre jedného zákazníka. Zdieľanie prístupu, kódov alebo obsahu kurzu
+            tretím osobám nie je povolené.
+          </p>
+        </div>
+
+        <div class="legal-card">
+          <h3>Refund policy</h3>
+
+          <p>
+            Keďže ide o digitálny produkt, po úspešnom sprístupnení kurzu nemusí vzniknúť automatický nárok
+            na vrátenie platby.
+          </p>
+
+          <p>
+            Ak nastane technický problém, napríklad nepríde e-mailový kód alebo sa kurz nedá odomknúť,
+            kontaktuj nás a problém vyriešime individuálne.
+          </p>
+
+          <p>
+            Žiadosť o vrátenie platby je možné poslať na kontaktný e-mail. Každá žiadosť bude posúdená
+            individuálne podľa situácie.
+          </p>
+        </div>
+
+        <div class="legal-card" id="kontakt">
+          <h3>Kontakt</h3>
+
+          <p>
+            V prípade otázok, technického problému, reklamácie alebo žiadosti o podporu nás kontaktuj na:
+          </p>
+
+          <p>
+            <a href="mailto:dudasmilan421@gmail.com">dudasmilan421@gmail.com</a>
+          </p>
+
+          <p>
+            Odpovedáme čo najskôr, zvyčajne do 24–48 hodín.
+          </p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="footer">
-    <div>© NutriKurz</div>
-    <div>Bezpečný prístup cez e-mailový kód a server.</div>
+    <div>© 2026 NutriKurz. Všetky práva vyhradené.</div>
+    <div>
+      Kontakt:
+      <a href="mailto:dudasmilan421@gmail.com" style="color: var(--green); font-weight: 900;">
+        dudasmilan421@gmail.com
+      </a>
+    </div>
   </footer>
 
   <script>
     (() => {
       const API_URL = "";
 
-      // ADMIN TEST PRÍSTUP
-      // ZMEŇ SI EMAIL NA SVOJ. Tento bypass je iba na testovanie.
-      const ADMIN_EMAIL = "azuriangarta@gmail.com";
-      const ADMIN_CODE = "WaOs5668";
 
       function setMessage(text, type = "") {
         const msg = document.getElementById("message");
@@ -874,10 +979,6 @@
           return;
         }
 
-        if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-          setMessage("Admin účet: zadaj admin kód a klikni Odomknúť kurz.", "success");
-          return;
-        }
 
         try {
           const res = await fetch(`${API_URL}/send-login-code`, {
@@ -911,13 +1012,6 @@
           return;
         }
 
-        // ADMIN BYPASS PRE MAJITEĽA
-        if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && code === ADMIN_CODE) {
-          sessionStorage.setItem("nutrikurz_admin_unlocked", "1");
-          setMessage("Admin prístup odomknutý.", "success");
-          showCourse();
-          return;
-        }
 
         try {
           const res = await fetch(`${API_URL}/verify-code`, {
@@ -953,7 +1047,6 @@
         }
 
         if (
-          sessionStorage.getItem("nutrikurz_admin_unlocked") === "1" ||
           sessionStorage.getItem("nutrikurz_unlocked") === "1"
         ) {
           showCourse(false);
@@ -1206,8 +1299,6 @@
         });
       }
 
-      // Exportujeme iba funkcie potrebné pre onclick v HTML.
-      // showCourse exportované aj na rýchle testovanie cez konzolu.
       window.showCourse = showCourse;
       window.buyCourse = buyCourse;
       window.sendLoginCode = sendLoginCode;
